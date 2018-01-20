@@ -2,48 +2,7 @@
 from statistics import stddev
 from scipy.stats import linregress
 
-def sma(x, y):
-    '''
-    https://www.tradingview.com/study-script-reference/#fun_sma
-    the sum of moving averages
-        @return the moving average, that is the sum of last y values of x, divided by y.
-    '''
-    sma_sum = 0.0
-    for i in range(0, y - 1):
-        sma_sum = sma_sum + x[i] / y
-
-    return sma_sum
-
-def tr(high, low, last_close):
-    '''
-    https://www.tradingview.com/study-script-reference/#fun_tr
-    true range. it is max(high - low, abs(high - last_close), abs(low - last_close))
-        @return the true rangebased on the above formula
-    '''
-    return max(high - low, abs(high - last_close), abs(low - last_close))
-
-def nz(series):
-    ''' 
-    https://www.tradingview.com/study-script-reference/#fun_nz
-    NaN zeroes. replaces NaN values with zeros (or given value) in a series.
-        @return the new series
-    '''
-    nz_series = []
-    for val in series:
-        try:
-            val = float(val)
-        except Exception as e:
-            val = 0
-        nz_series.append(val)
-
-    return nz_series
-
-def avg(*args):
-    '''
-    given a series, returns the average (mean)
-        @return the average of a series
-    '''
-    return sum(args) / float(len(args))
+from tradingview_methods import *
 
 # global vars, could be arguments in the future
 LENGTH = 20
@@ -112,5 +71,19 @@ def get_squeeze_bar(opens, closes, highs, lows):
     return bcolor, scolor
 
 
+def get_wavetrend_cross(opens, closes, highs, lows):
+    n1 = 10 # channel length
+    n2 = 21 # average length
 
+    ap = [hlc3(high, low, close) for (high, low, close) in zip(highs, lows, closes)]
+    esa = ema(ap, n1)
+    d = ema(abs_list(list_difference(ap, esa)), n1)
+    ci = list_division(list_difference(ap, esa),  multiply_list(d, 0.015))
+    tci = ema(ci, n2)
 
+    wt1 = tci
+    wt2 = [sma(wt1[1:v+1], 4) for v in range(len(wt1))]
+
+    cross_list = cross(wt1, wt2)
+
+    return wt1, wt2, cross_list
