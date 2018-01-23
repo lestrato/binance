@@ -11,12 +11,10 @@ class Binance:
     def __init__(self):
         self.client = BinanceAPI(config.api_key, config.api_secret)
 
+    @property
     def balances(self):
         balances = self.client.get_account()
-
-        for balance in balances['balances'] :
-            if float(balance["locked"]) > 0 or float(balance["free"]) > 0 :
-                print '%s: %s' % (balance['asset'], balance['free'])
+        return { balance['asset']: balance['free'] for balance in balances['balances'] if float(balance["locked"]) > 0 or float(balance["free"]) > 0 } 
 
     def orders(self, symbol, limit):
         orders = self.client.get_open_orders(symbol, limit)
@@ -31,15 +29,3 @@ class Binance:
 
     def openorders(self):
        return self.client.get_open_orders()
-
-try:
-
-    m = Binance()
-    #m.balances()
-    m.orders('XVGBTC',10)
-
-except "BinanceAPIException" as e:
-    print e.status_code
-    print e.message
-
-
