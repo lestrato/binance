@@ -28,48 +28,82 @@ def main(coin):
 
 
     # for testing purposes
-    obLevel1 = 50 # overbought level 1
-    obLevel2 = 43 # overbought level 2
-    osLevel1 = -50 # oversold level 1
-    osLevel2 = -5 # oversold level 2
+    obLevel1 = 60 # overbought level 1
+    obLevel2 = 53 # overbought level 2
+    osLevel1 = -60 # oversold level 1
+    osLevel2 = -53# oversold level 2
 
-    starting_wallet = 25.00 # usd of course
+    starting_wallet = 55.00 # usd of course
+    transaction_amount = 25.00
     wallet = starting_wallet
-    coins_holding = 0.0
+    # coins_holding = 0.0
     transaction_fee = 0.001 # 0.1 / 100
     trade_count = 0
     total_transaction_costs = 0.00
-    bought_at = 0
+    bought_at = {}
     wallet_history = []
+
+    print 'TRADES for {coin}:'.format(coin=coin)
 
     for k in range(len(kline_set)):
         last_kline = kline_set[k - 1]
         current_kline = kline_set[k]
 
-        if last_kline.action == Kline.BUY_CODE and coins_holding == 0:
-            coins_bought = wallet // current_kline.open
+        # find if any of the buy orders rose above 0.8% of what it is now
+        risen = [bought_price for bought_price in bought_at.keys() if (bought_price * 1.03 < current_kline.open)]
+        # find if any of the buy orders fell below 80% of what it is now
+        fallen = [bought_price for bought_price in bought_at.keys() if (bought_price * 0.920 > current_kline.open)]
+
+        if last_kline.action == Kline.BUY_CODE and last_kline.wt1 < osLevel1 and wallet > transaction_amount:
+            coins_bought = transaction_amount // current_kline.open
             transaction = coins_bought * current_kline.open
             wallet -= transaction
             wallet -= transaction_fee * transaction
             total_transaction_costs += transaction_fee * transaction
-            coins_holding += coins_bought
+            # coins_holding += coins_bought
             trade_count += 1
-            bought_at = current_kline.open
-            print 'Bought {coins_bought} at {bought_at}'.format(coins_bought=coins_bought, bought_at=bought_at)
+            bought_at[current_kline.open] = coins_bought
+            print 'Bought {coins_bought} for {bought_at} at {trade_time}'.format(coins_bought=coins_bought, bought_at=current_kline.open, trade_time=current_kline.open_time_dt)
             wallet_history.append(wallet)
 
-        if last_kline.action == Kline.SELL_CODE and current_kline.open > (bought_at * 1.008) and coins_holding != 0:
-            print 'Sold {coins_holding} at {sold_at}'.format(coins_holding=coins_holding, sold_at=current_kline.open)
-            transaction = coins_holding * current_kline.open
-            wallet += transaction
-            wallet -= transaction_fee * transaction
-            total_transaction_costs += transaction_fee * transaction
-            coins_holding = 0.0
-            trade_count += 1
-            wallet_history.append(wallet)
+        if last_kline.action == Kline.SELL_CODE and (risen or fallen):
+            for buy_price in risen + fallen:
+                amount_sold = bought_at[buy_price]
+                print 'Sold {coins_holding} at {sold_at} at {trade_time}'.format(coins_holding=amount_sold, sold_at=current_kline.open, trade_time=current_kline.open_time_dt)
+                transaction = amount_sold * current_kline.open
+                wallet += transaction
+                wallet -= transaction_fee * transaction
+                total_transaction_costs += transaction_fee * transaction
+                del bought_at[buy_price]
+                trade_count += 1
+                wallet_history.append(wallet)
 
-    if coins_holding != 0.0:
-        wallet = wallet_history[-2] if len(wallet_history) > 1 else starting_wallet
+    if len(bought_at):
+        print '------ END OF DAY DUMPS ------'
+
+    for buy_price in bought_at.keys():
+        amount_sold = bought_at[buy_price]
+        print 'Sold {coins_holding} at {sold_at} at {trade_time}'.format(coins_holding=amount_sold, sold_at=current_kline.open, trade_time=current_kline.open_time_dt)
+        transaction = amount_sold * current_kline.open
+        wallet += transaction
+        wallet -= transaction_fee * transaction
+        total_transaction_costs += transaction_fee * transaction
+        del bought_at[buy_price]
+        trade_count += 1
+        wallet_history.append(wallet)
+
+    # if coins_holding != 0.0:
+    #     wallet = wallet_history[-2] if len(wallet_history) > 1 else starting_wallet
+
+    # if coins_holding != 0.0:
+    #     print 'Sold {coins_holding} at {sold_at}'.format(coins_holding=coins_holding, sold_at=current_kline.open)
+    #     transaction = coins_holding * current_kline.open
+    #     wallet += transaction
+    #     wallet -= transaction_fee * transaction
+    #     total_transaction_costs += transaction_fee * transaction
+    #     coins_holding = 0.0
+    #     trade_count += 1
+    #     wallet_history.append(wallet)
 
     print '-------------'
     print 'STATISTICS for {coin}:'.format(coin=coin)
@@ -85,17 +119,21 @@ def main(coin):
         percent_made=round((wallet / starting_wallet - 1) * 100, 2)
     )
 
-    return round(wallet - starting_wallet, 2), round((wallet / starting_wallet - 1) * 100, 2)
+    return trade_count, round(wallet - starting_wallet, 2), round((wallet / starting_wallet - 1) * 100, 2)
 
 if __name__ == "__main__":
+    total_trade_count = 0
     total_net_earnings = 0
     total_percent_made = 0
-    for coin in ['ASTBTC', 'ICXBTC', 'XVGBTC', 'BCCBTC', 'XLMBTC', 'ENJBTC', 'TRXBTC', 'XRPBTC', 'NEOBTC', 'FUNBTC', 'STRATBTC']:
-        net_earnings, percent_made = main(coin)
+    for coin in ['XLMBTC', 'OSTBTC', 'ADABTC', 'NEOBTC', 'TRXBTC', 'XVGBTC', 'QTUMBTC', 'ICXBTC']:
+        trade_count, net_earnings, percent_made = main(coin)
+        total_trade_count += trade_count
         total_net_earnings += net_earnings
         total_percent_made += percent_made
-        print '============'
+        print '========================'
 
-    print 'TOTAL NET EARNINGS: {net_earnings}'.format(net_earnings=total_net_earnings)
-    print 'TOTAL NET EARNINGS: {net_earnings}'.format(net_earnings=total_net_earnings)
-    print 'TOTAL PERCENT MADE: {percent_made}'.format(percent_made=total_percent_made)
+    print 'TOTAL TRADE COUNT: {trade_count}'.format(trade_count=trade_count)
+    print 'TOTAL NET EARNINGS: ${net_earnings}'.format(net_earnings=total_net_earnings)
+    print 'TOTAL PERCENT MADE: {percent_made}%'.format(percent_made=total_percent_made)
+    print 'AVERAGE NET EARNINGS: ${average_earnings}'.format(average_earnings=total_net_earnings/trade_count)
+    print 'AVERAGE PERCENT MADE: {average_percent_made}%'.format(average_percent_made=round(total_percent_made/trade_count, 2))
