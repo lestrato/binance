@@ -12,7 +12,7 @@ coin = 'NEOBTC'
 def main(coin):
     kline_set = []
 
-    for kline in client.get_kline(coin, '3m'):
+    for kline in client.get_kline(coin, '1m'):
         kline_set.append(Kline(coin, kline[:11]))
 
     opens = [kline.open for kline in kline_set]

@@ -39,13 +39,14 @@ CALIBRATE = option.calibrate
 # Define static vars
 TRANSACTION_FEE = 0.0005 # percent
 MINIMUM_BUY_IN = 0.0022 # satoshis
-OVERSOLD_LEVEL = -10
+OVERSOLD_LEVEL = -60
 
 class Transaction:
     def __init__(self, buy_price, buy_time, amount, sell_price=None, sell_time=None):
-        self.time = time
         self.buy_price = buy_price
+        self.buy_time = buy_time
         self.sell_price = sell_price
+        self.sell_time = sell_time
         self.amount = amount
 
 class TransactionHistory:
@@ -53,11 +54,10 @@ class TransactionHistory:
         self.history = []
         self.wallet = 0.005
         self.coin = coin
-        self.fees = 0.00
 
     @property
     def history_not_sold(self):
-        return [transaction for transaction in self.history if transaction.sell_time != None]
+        return [transaction for transaction in self.history if transaction.sell_time == None]
 
     def trader(self):
 
@@ -79,37 +79,46 @@ class TransactionHistory:
             kline.wt2 = w2
             kline.has_crossed = crossed
 
-        # find if any of the buy orders rose above 0.8% of what it is now
-        risen = [transaction.buy_price for transaction in self.history_not_sold if (transaction.buy_price * 1.03 < current_kline.open)]
-        # find if any of the buy orders fell below 80% of what it is now
-        fallen = [transaction.buy_price for transaction in self.history_not_sold if (transaction.buy_price * 0.920 > current_kline.open)]
-
         last_kline = kline_set[-2]
         current_kline = kline_set[-1]
 
-        print current_kline
+        # find if any of the buy orders rose above 0.8% of what it is now
+        risen = [transaction for transaction in self.history_not_sold if (transaction.buy_price * 1.03 < current_kline.open)]
+        # find if any of the buy orders fell below 80% of what it is now
+        fallen = [transaction for transaction in self.history_not_sold if (transaction.buy_price * 0.920 > current_kline.open)]
 
         if last_kline.action == Kline.BUY_CODE and last_kline.wt1 < OVERSOLD_LEVEL:
             coins_bought = (MINIMUM_BUY_IN // current_kline.open) + 1
             purchase = coins_bought * current_kline.open
 
+            print ('Trying to buy {coins_bought} {coin} for {bought_at}'.format(coins_bought=coins_bought, coin=self.coin, )bought_at=current_kline.open)
+
             # check if we have enough for this purchase
             if float(binance.balances['BTC']) < purchase:
-                print ("You don't have enought BTC to make this purchase")
+                print ("You don't have enough BTC to make this purchase ({btc_wallet} remaining)".format(btc_wallet=binance.balances['BTC']))
+                return
+
+            if self.wallet < purchase:
+                print ("You've capped out this {coin} and have {wallet} left in-wallet".format(coin=self.coin, wallet=self.wallet))
                 return
 
             self.wallet -= purchase
             self.wallet -= TRANSACTION_FEE * purchase
 
-            self.history.append(Transaction(time=current_kline.open_time, buy_price=current_kline.open, amount=coins_bought))
-            print 'Bought {coins_bought} for {bought_at} at {trade_time}'.format(coins_bought=coins_bought, bought_at=current_kline.open, trade_time=current_kline.open_time_dt)
+            self.history.append(Transaction(buy_time=current_kline.open_time, buy_price=current_kline.open, amount=coins_bought))
+            print ('Bought {coins_bought} {coin} for {bought_at} at {trade_time}'.format(coins_bought=coins_bought, coin=self.coin, bought_at=current_kline.open, trade_time=current_kline.open_time_dt))
+            print ('You have {wallet} left in your {coin} wallet'.format(wallet=self.wallet, coin=self.coin))
+            print ('----------')
 
         if last_kline.action == Kline.SELL_CODE and (risen or fallen):
             for transaction in risen + fallen:
                 sale = transaction.amount * current_kline.open
 
+                print ('Trying to sell {coins_holding} {coin} for {sold_at}'.format(coins_holding=transaction.amount, coin=)self.coin, sold_at=current_kline.open)
+
                 if sale < MINIMUM_BUY_IN:
                     print ("Couldn't sell the coins, under transaction minimum.")
+                    return
 
                 self.wallet += sale
                 self.wallet -= TRANSACTION_FEE * sale
@@ -117,14 +126,15 @@ class TransactionHistory:
                 transaction.sell_price = current_kline.open
                 transaction.sell_time = current_kline.open_time
 
-                print 'Sold {coins_holding} at {sold_at} at {trade_time}'.format(coins_holding=transaction.amount, sold_at=current_kline.open, trade_time=current_kline.open_time_dt)
+                print ('Sold {coins_holding} {coin} for {sold_at} at {trade_time}'.format(coins_holding=transaction.amount, )coin=self.coin, sold_at=current_kline.open, trade_time=current_kline.open_time_dt)
+
+                print ('You have {wallet} left in your {coin} wallet'.format(wallet=self.wallet, coin=self.coin))
+                print ('----------')
 
         # we don't know if the coin needs an int buy in total, or can just use a float.
 
 def main():
-    symbols = ['XLMBTC', 'OSTBTC', 'ADABTC', 'NEOBTC', 'TRXBTC', 'XVGBTC', 'QTUMBTC', 'ICXBTC']
-
-    # symbols = ['XLMBTC'] #######
+    symbols = ['ADABTC', 'TRXBTC', 'XVGBTC',  'ICXBTC']
 
     print ("@lestrato, 2017")
     print ("Auto Trading for Binance.com.")
@@ -133,36 +143,21 @@ def main():
     print ("We're looking to trade: {symbols}".format(symbols=symbols))
 
     if CALIBRATE:
-        print ("Calibrating... this might take a minute.")
+        print ("Synchronizing... please wait {seconds} seconds.".format(seconds=65 - datetime.datetime.now().second))
         # only start running the threads at the beginning of the 60 second period (i.e. start of minute)
-        time.sleep(60 - datetime.datetime.now().second)
+        time.sleep(70 - datetime.datetime.now().second)
     else:
         print ("Skipping calibration.")
 
     # start new threads for each of these coins
     for symbol in symbols:
+        print ("Starting the trader on {symbol}".format(symbol=symbol))
         transaction_history = TransactionHistory(symbol)
         traderAction = threading.Thread(target=transaction_history.trader)
         traderAction.start()
+
+    print ("")
            
 
-    # while (cycle <= option.loop):
-          
-    #     startTime = time.time()
-        
-    #     actionTrader = threading.Thread(target=action, args=(symbol,))
-    #     actions.append(actionTrader)
-    #     actionTrader.start()
-                 
-    #     endTime = time.time()
-
-    #     if endTime - startTime < WAIT_TIME:
-            
-    #         time.sleep(WAIT_TIME - (endTime - startTime))
-            
-    #         # 0 = Unlimited loop
-    #         if option.loop > 0:       
-    #             cycle = cycle + 1
-                           
 if __name__ == "__main__":
     main()
