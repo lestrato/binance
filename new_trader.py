@@ -91,7 +91,7 @@ class TransactionHistory:
             coins_bought = (MINIMUM_BUY_IN // current_kline.open) + 1
             purchase = coins_bought * current_kline.open
 
-            print ('Trying to buy {coins_bought} {coin} for {bought_at}'.format(coins_bought=coins_bought, coin=self.coin, )bought_at=current_kline.open)
+            print ('Trying to buy {coins_bought} {coin} for {bought_at}'.format(coins_bought=coins_bought, coin=self.coin,bought_at=current_kline.open))
 
             # check if we have enough for this purchase
             if float(binance.balances['BTC']) < purchase:
@@ -114,7 +114,7 @@ class TransactionHistory:
             for transaction in risen + fallen:
                 sale = transaction.amount * current_kline.open
 
-                print ('Trying to sell {coins_holding} {coin} for {sold_at}'.format(coins_holding=transaction.amount, coin=)self.coin, sold_at=current_kline.open)
+                print ('Trying to sell {coins_holding} {coin} for {sold_at}'.format(coins_holding=transaction.amount, coin=self.coin, sold_at=current_kline.open))
 
                 if sale < MINIMUM_BUY_IN:
                     print ("Couldn't sell the coins, under transaction minimum.")
@@ -126,7 +126,7 @@ class TransactionHistory:
                 transaction.sell_price = current_kline.open
                 transaction.sell_time = current_kline.open_time
 
-                print ('Sold {coins_holding} {coin} for {sold_at} at {trade_time}'.format(coins_holding=transaction.amount, )coin=self.coin, sold_at=current_kline.open, trade_time=current_kline.open_time_dt)
+                print ('Sold {coins_holding} {coin} for {sold_at} at {trade_time}'.format(coins_holding=transaction.amount, coin=self.coin, sold_at=current_kline.open, trade_time=current_kline.open_time_dt))
 
                 print ('You have {wallet} left in your {coin} wallet'.format(wallet=self.wallet, coin=self.coin))
                 print ('----------')
