@@ -12,7 +12,7 @@ coin = 'NEOBTC'
 def main(coin):
     kline_set = []
 
-    for kline in client.get_kline(coin, '1m'):
+    for kline in client.get_kline(coin, '3m'):
         kline_set.append(Kline(coin, kline[:11]))
 
     opens = [kline.open for kline in kline_set]
@@ -28,10 +28,10 @@ def main(coin):
 
 
     # for testing purposes
-    obLevel1 = 60 # overbought level 1
-    obLevel2 = 53 # overbought level 2
-    osLevel1 = -60 # oversold level 1
-    osLevel2 = -53# oversold level 2
+    obLevel1 = 40 # overbought level 1
+    obLevel2 = 33 # overbought level 2
+    osLevel1 = -40 # oversold level 1
+    osLevel2 = -33# oversold level 2
 
     starting_wallet = 55.00 # usd of course
     transaction_amount = 25.00
@@ -45,16 +45,17 @@ def main(coin):
 
     print 'TRADES for {coin}:'.format(coin=coin)
 
+    remove_from_wallet = False
     for k in range(len(kline_set)):
         last_kline = kline_set[k - 1]
         current_kline = kline_set[k]
 
         # find if any of the buy orders rose above 0.8% of what it is now
-        risen = [bought_price for bought_price in bought_at.keys() if (bought_price * 1.03 < current_kline.open)]
+        risen = [bought_price for bought_price in bought_at.keys() if last_kline.action == Kline.SELL_CODE and last_kline.wt1 > obLevel2]
         # find if any of the buy orders fell below 80% of what it is now
-        fallen = [bought_price for bought_price in bought_at.keys() if (bought_price * 0.920 > current_kline.open)]
+        fallen = []
 
-        if last_kline.action == Kline.BUY_CODE and last_kline.wt1 < osLevel1 and wallet > transaction_amount:
+        if last_kline.action == Kline.BUY_CODE and last_kline.wt1 < osLevel1 and current_kline.wt1 > osLevel1 and wallet > transaction_amount and len(bought_at) == 0:
             coins_bought = transaction_amount // current_kline.open
             transaction = coins_bought * current_kline.open
             wallet -= transaction
@@ -66,7 +67,7 @@ def main(coin):
             print 'Bought {coins_bought} for {bought_at} at {trade_time}'.format(coins_bought=coins_bought, bought_at=current_kline.open, trade_time=current_kline.open_time_dt)
             wallet_history.append(wallet)
 
-        if last_kline.action == Kline.SELL_CODE and (risen or fallen):
+        if risen or fallen:
             for buy_price in risen + fallen:
                 amount_sold = bought_at[buy_price]
                 print 'Sold {coins_holding} at {sold_at} at {trade_time}'.format(coins_holding=amount_sold, sold_at=current_kline.open, trade_time=current_kline.open_time_dt)
@@ -74,9 +75,14 @@ def main(coin):
                 wallet += transaction
                 wallet -= transaction_fee * transaction
                 total_transaction_costs += transaction_fee * transaction
+
+                remove_from_wallet = bought_at[buy_price] > (current_kline.open * 1.001)
+
                 del bought_at[buy_price]
                 trade_count += 1
                 wallet_history.append(wallet)
+
+            # if remove_from_wallet: break
 
     if len(bought_at):
         print '------ END OF DAY DUMPS ------'
@@ -125,15 +131,15 @@ if __name__ == "__main__":
     total_trade_count = 0
     total_net_earnings = 0
     total_percent_made = 0
-    for coin in ['XLMBTC', 'OSTBTC', 'ADABTC', 'NEOBTC', 'TRXBTC', 'XVGBTC', 'QTUMBTC', 'ICXBTC']:
+    for coin in ['XLMBTC', 'OSTBTC', 'ADABTC', 'NEOBTC', 'ENJBTC', 'FUNBTC', 'QTUMBTC', 'ICXBTC']:
         trade_count, net_earnings, percent_made = main(coin)
         total_trade_count += trade_count
         total_net_earnings += net_earnings
         total_percent_made += percent_made
         print '========================'
 
-    print 'TOTAL TRADE COUNT: {trade_count}'.format(trade_count=trade_count)
+    print 'TOTAL TRADE COUNT: {trade_count}'.format(trade_count=total_trade_count)
     print 'TOTAL NET EARNINGS: ${net_earnings}'.format(net_earnings=total_net_earnings)
     print 'TOTAL PERCENT MADE: {percent_made}%'.format(percent_made=total_percent_made)
-    print 'AVERAGE NET EARNINGS: ${average_earnings}'.format(average_earnings=total_net_earnings/trade_count)
-    print 'AVERAGE PERCENT MADE: {average_percent_made}%'.format(average_percent_made=round(total_percent_made/trade_count, 2))
+    print 'AVERAGE NET EARNINGS: ${average_earnings}'.format(average_earnings=total_net_earnings/total_trade_count)
+    print 'AVERAGE PERCENT MADE: {average_percent_made}%'.format(average_percent_made=round(total_percent_made/total_trade_count, 2))

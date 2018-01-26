@@ -99,7 +99,7 @@ class TransactionHistory:
                 return
 
             if self.wallet < purchase:
-                print ("You've capped out this {coin} and have {wallet} left in-wallet".format(coin=self.coin, wallet=self.wallet))
+                print ("You've capped out on {coin} and have {wallet} left in-wallet".format(coin=self.coin, wallet=self.wallet))
                 return
 
             self.wallet -= purchase
