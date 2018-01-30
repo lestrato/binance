@@ -87,3 +87,57 @@ def get_wavetrend_cross(opens, closes, highs, lows):
     cross_list = cross(wt1, wt2)
 
     return wt1, wt2, cross_list
+
+def get_godlike(opens, closes, highs, lows, volumes):
+    n1 = 14 # channel length
+    n2 = 12 # average length
+    n3 = 9 # short length
+    srcs = [hlc3(high, low, close) for (high, low, close) in zip(highs, lows, closes)]
+    volumes = [Decimal(volume) for volume in volumes]
+    volume = volumes[-1]
+
+    def tci(src):
+        '''
+        tci(src):
+            ema(
+                (src - ema(src, n1)) / (0.025 * ema(abs(src - ema(src, n1)), n1)),
+                n2
+            ) + 50
+
+        >>> A = (src - ema(src, n1))
+        >>> B = ema(abs(src - ema(src, n1)), n1)
+        '''
+        A = list_difference(src, ema(src, n1))
+        B = ema([abs(value) for value in list_difference(src, ema(src, n1))], n1)
+        return add_to_list(ema(list_division(A, multiply_list(B, Decimal(0.025))), n2), Decimal(50))
+
+    def mf(src):
+        '''
+        mf(src):
+            rsi(
+                sum(
+                    volume * (change(src) <= 0 ? 0 : src), 
+                    n3), 
+                sum(
+                    volume * (change(src) >= 0 ? 0 : src),
+                    n3
+                )
+            )
+        '''
+        change_list = change(src)
+
+        neg_mult_change_list = [0 if change_list[i] <= 0 else volumes[i] * src[i] for i in range(len(src))]
+        pos_mult_change_list = [0 if change_list[i] >= 0 else volumes[i] * src[i] for i in range(len(src))]
+
+        return rsi(
+            sum_list(neg_mult_change_list, n3), 
+            sum_list(pos_mult_change_list, n3)
+        )
+
+    def tradition(src):
+        return [avg(t, m, r) for (t, m, r) in zip(tci(src), mf(src), rsi(src, n3))]
+
+    wt1 = tradition(srcs)
+    wt2 = [sma(wt1[1:v+1], 6) for v in range(len(wt1))]
+
+    return wt1, wt2

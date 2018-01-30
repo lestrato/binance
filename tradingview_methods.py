@@ -1,3 +1,4 @@
+from decimal import Decimal
 
 def sma(x, y):
     '''
@@ -5,13 +6,7 @@ def sma(x, y):
     the sum of moving averages
         @return the moving average, that is the sum of last y values of x, divided by y.
     '''
-
-    # print x
-    # print y
     return sum(x[-y:]) / y
-
-    # raise ValueError('stop')
-    # return sma_sum
 
 def tr(high, low, last_close):
     '''
@@ -42,7 +37,7 @@ def avg(*args):
     given a series, returns the average (mean)
         @return the average of a series
     '''
-    return sum(args) / float(len(args))
+    return sum(args) / Decimal(len(args))
 
 
 def hlc3(high, low, close):
@@ -50,7 +45,7 @@ def hlc3(high, low, close):
     is a shortcut for (high+low+close)/3
         @returns float
     '''
-    return (high+low+close)/3.0
+    return (high+low+close)/Decimal(3)
 
 def ema(source, length):
     '''
@@ -62,11 +57,8 @@ def ema(source, length):
         @returns a series: exponential moving average of x with alpha = 2/(y+1)
     '''
 
-
     # the EMAtoday = EMAyesterday + alpha(price today - EMAyesterday)
-    alpha = 2.0 / (length + 1)
-    ema_sum = 0.0
-
+    alpha = Decimal(2.0) / Decimal(length + 1)
     ema_return = []
 
     for c in range(len(source)):
@@ -77,7 +69,56 @@ def ema(source, length):
         ema_return.append(ema_today)
 
     return ema_return
-    
+
+def rma(source, length):
+    '''
+    moving average used in RSI. it is the exponentially weighted moving average with alpha = length - 1
+        @source: a series of values to process
+        @length: the number of bars
+        @returns a series: expontential moving average of x with alpha = y - 1
+
+    '''
+    alpha = Decimal(1)/length
+    rma_return = []
+
+    for c in range(len(source)):
+        value = source[c]
+        prev_rma = rma_return[c-1] if c > 0 else 0
+
+        rma_today = alpha * value + (Decimal(1) - alpha) * prev_rma
+
+        rma_return.append(rma_today)
+
+    return rma_return
+
+def rsi(list1, list2):
+    '''
+    relative strength index: it is calculated based on rma's of upward and downward change of x
+        @list1: a series of values to process
+        @list2: a series of values to process, or an integer
+        @returns relative strength index
+    '''
+    if type(list2) != list:
+        upward = []
+        downward = []
+
+        for i in range(len(list1)):
+            u = max(list1[i] - list1[i-1], 0) if i > 0 else 0
+            d = max(list1[i-1] - list1[i], 0) if i > 0 else 0
+            upward.append(u)
+            downward.append(d)
+
+        rma1 = rma(upward, list2)
+        rma2 = rma(downward, list2)
+
+    else:
+        rma1 = list1
+        rma2 = list2
+
+    rs = list_division(rma1, rma2)
+
+    return [Decimal(100) - (Decimal(100) / (Decimal(1) + r)) for r in rs]
+
 def abs_list(source):
     '''
     runs abs on each value in the source
@@ -99,12 +140,38 @@ def multiply_list(source, multiplier):
     '''
     return [value * multiplier for value in source]
 
+def add_to_list(source, value):
+    '''
+    add the value to all elements in the list
+        @returns the list with the added value to each element
+    '''
+    return [element + value for element in source]
+
+def sum_list(source, length):
+    '''
+    sums the last y values of x
+        @returns the sum of the last y values of x
+    '''
+    summed_list = []
+    for v in range(1, len(source) + 1):
+        last_y_values_sum = sum(source[v-length:v]) if v >= length else sum(source[0:v])
+        summed_list.append(last_y_values_sum)
+    return summed_list
+
+def change(source, length=1):
+    '''
+    difference between current value and previous, x - x[y]
+        @returns the difference between the current value and the previous
+    '''
+    return [source[s] - source[s-1] if s > 0 else 0 for s in range(len(source))]
+
+
 def list_division(list1, list2):
     '''
     divides list2's values from list1's values
         @returns the list result of the divison(s)
     '''
-    return [v1 / v2 for (v1, v2) in zip(list1, list2)]
+    return [v1 / v2 if v2 != 0 else 0 for (v1, v2) in zip(list1, list2)]
 
 def cross(list1, list2):
     '''
