@@ -78,7 +78,7 @@ def get_wavetrend_cross(opens, closes, highs, lows):
     ap = [hlc3(high, low, close) for (high, low, close) in zip(highs, lows, closes)]
     esa = ema(ap, n1)
     d = ema(abs_list(list_difference(ap, esa)), n1)
-    ci = list_division(list_difference(ap, esa),  multiply_list(d, 0.015))
+    ci = list_division(list_difference(ap, esa),  multiply_list(d, Decimal(0.015)))
     tci = ema(ci, n2)
 
     wt1 = tci
