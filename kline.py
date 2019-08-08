@@ -1,5 +1,6 @@
 from collections import namedtuple
 import datetime
+from decimal import Decimal
 
 
 class Kline(object):
@@ -11,11 +12,11 @@ class Kline(object):
         self.symbol = symbol
 
         self.open_time = int(kline_api_response[0])
-        self.open = float(kline_api_response[1])
-        self.high = float(kline_api_response[2])
-        self.low = float(kline_api_response[3])
-        self.close = float(kline_api_response[4])
-        self.volume = float(kline_api_response[5])
+        self.open = Decimal(kline_api_response[1])
+        self.high = Decimal(kline_api_response[2])
+        self.low = Decimal(kline_api_response[3])
+        self.close = Decimal(kline_api_response[4])
+        self.volume = Decimal(kline_api_response[5])
         self.close_time = int(kline_api_response[6])
         self.quote_asset_volume = float(kline_api_response[7])
         self.no_of_trades = int(kline_api_response[8])
@@ -75,13 +76,14 @@ class Kline(object):
 
     @property
     def action(self):
+
         if not self.has_crossed or not self.extended:
             return Kline.HOLD_CODE
 
-        if (self.wavetrend_wt1 > self.wavetrend_wt2) and self.godmode_wt1 < 25:
+        if (self.wavetrend_wt1 > self.wavetrend_wt2) and self.wavetrend_wt2 < -53 and self.extended < 25:
             return Kline.BUY_CODE
 
-        elif (self.wavetrend_wt2 > self.wavetrend_wt1) and self.godmode_wt2 > 75:
+        elif (self.wavetrend_wt2 > self.wavetrend_wt1) and self.wavetrend_wt1 > 53 and self.extended > 75:
             return Kline.SELL_CODE
 
         else:

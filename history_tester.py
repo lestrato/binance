@@ -1,34 +1,32 @@
-    
-    # for testing purposes
-    obLevel1 = 40 # overbought level 1
-    obLevel2 = 33 # overbought level 2
-    osLevel1 = -40 # oversold level 1
-    osLevel2 = -33# oversold level 2
+from kline import Kline
+from decimal import Decimal
 
-    starting_wallet = 55.00 # usd of course
-    transaction_amount = 25.00
+def history_tester(kline_set):
+    # for testing purposes
+    starting_wallet = Decimal(55.00) # usd of course
+    transaction_amount = Decimal(25.00)
     wallet = starting_wallet
     # coins_holding = 0.0
-    transaction_fee = 0.001 # 0.1 / 100
-    trade_count = 0
-    total_transaction_costs = 0.00
+    transaction_fee = Decimal(0.001) # 0.1 / 100
+    trade_count = Decimal(0)
+    total_transaction_costs = Decimal(0.00)
+    optimal_profit = Decimal(1.03) # percent
     bought_at = {}
     wallet_history = []
 
-    print 'TRADES for {coin}:'.format(coin=coin)
+    print 'TRADES for {coin}:'.format(coin=kline_set[0].symbol)
 
-    remove_from_wallet = False
     for k in range(len(kline_set)):
         last_kline = kline_set[k - 1]
         current_kline = kline_set[k]
 
         # find if any of the buy orders rose above 0.8% of what it is now
-        risen = [bought_price for bought_price in bought_at.keys() if last_kline.action == Kline.SELL_CODE and last_kline.wt1 > obLevel2]
+        risen = [bought_price for bought_price in bought_at.keys() if last_kline.action == Kline.SELL_CODE or ((last_kline.wavetrend_wt2 > last_kline.wavetrend_wt1) and bought_price * optimal_profit < last_kline.open)] #
         # find if any of the buy orders fell below 80% of what it is now
         fallen = []
 
-        if last_kline.action == Kline.BUY_CODE and last_kline.wt1 < osLevel1 and current_kline.wt1 > osLevel1 and wallet > transaction_amount and len(bought_at) == 0:
-            coins_bought = transaction_amount // current_kline.open
+        if last_kline.action == Kline.BUY_CODE and len(bought_at) == 0:
+            coins_bought = transaction_amount / current_kline.open
             transaction = coins_bought * current_kline.open
             wallet -= transaction
             wallet -= transaction_fee * transaction
@@ -48,13 +46,9 @@
                 wallet -= transaction_fee * transaction
                 total_transaction_costs += transaction_fee * transaction
 
-                remove_from_wallet = bought_at[buy_price] > (current_kline.open * 1.001)
-
                 del bought_at[buy_price]
                 trade_count += 1
                 wallet_history.append(wallet)
-
-            # if remove_from_wallet: break
 
     if len(bought_at):
         print '------ END OF DAY DUMPS ------'
@@ -70,24 +64,12 @@
         trade_count += 1
         wallet_history.append(wallet)
 
-    # if coins_holding != 0.0:
-    #     wallet = wallet_history[-2] if len(wallet_history) > 1 else starting_wallet
-
-    # if coins_holding != 0.0:
-    #     print 'Sold {coins_holding} at {sold_at}'.format(coins_holding=coins_holding, sold_at=current_kline.open)
-    #     transaction = coins_holding * current_kline.open
-    #     wallet += transaction
-    #     wallet -= transaction_fee * transaction
-    #     total_transaction_costs += transaction_fee * transaction
-    #     coins_holding = 0.0
-    #     trade_count += 1
-    #     wallet_history.append(wallet)
-
+    trade_count /= 2
     print '-------------'
-    print 'STATISTICS for {coin}:'.format(coin=coin)
+    print 'STATISTICS for {coin}:'.format(coin=kline_set[0].symbol)
     print 'First trade time: {open_time}'.format(open_time=kline_set[0].open_time_dt)
     print 'Last trade time: {close_time}'.format(close_time=kline_set[-1].close_time_dt)
-    print 'Total trades made: {trade_count}'.format(trade_count=trade_count)
+    print 'Total flips made: {trade_count}'.format(trade_count=trade_count)
     print 'Total transaction cost: ${transaction_cost}'.format(transaction_cost=round(total_transaction_costs, 2))
 
     print 'Starting wallet: ${starting_wallet}'.format(starting_wallet=round(starting_wallet, 2))
@@ -97,4 +79,4 @@
         percent_made=round((wallet / starting_wallet - 1) * 100, 2)
     )
 
-    return trade_count, round(wallet - starting_wallet, 2), round((wallet / starting_wallet - 1) * 100, 2)
+    return trade_count, wallet - starting_wallet, (wallet / starting_wallet - 1) * 100

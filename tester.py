@@ -6,6 +6,8 @@ from kline import Kline
 
 from decimal import Decimal
 
+from history_tester import history_tester
+
 # Define Custom import vars
 client = BinanceAPI(config.api_key, config.api_secret)
 
@@ -34,54 +36,36 @@ def attach_godlike(kline_set):
     for (kline, w1, w2) in zip(kline_set, wt1, wt2):
         kline.godmode_wt1 = w1
         kline.godmode_wt2 = w2
-        kline.extended = w2 + 5 if w2 < 20 else w2 > 80 if w2 - 5 else None
+        kline.extended = w2 + 5 if w2 < 20 else w2 - 5 if w2 > 80 else None
 
 
 def tester(coin):
     kline_set = []
-    for kline in client.get_kline(coin, '1m'):
+    for kline in client.get_kline(coin, '3m'):
         kline_set.append(Kline(coin, kline[:11]))
 
     attach_wavetrend(kline_set)
     attach_godlike(kline_set)
 
-
-    godlike_dot_trend = []
-    godlike_allow_trendmaking = True
-
-    for k in range(len(kline_set)):
-        last_kline = kline_set[k - 1]
-        current_kline = kline_set[k]
-
-        # buy signal
-        if last_kline.action == Kline.BUY_CODE:
-            print 'BUY'
-            print current_kline
-            print '-----'
-        elif last_kline.action == Kline.SELL_CODE:
-            print 'SALE'
-            print current_kline
-            print '-----'
-    
+    return history_tester(kline_set)
 
 
 
 if __name__ == "__main__":
-    coin = 'NEOBTC'
-    # for coin in ['XLMBTC', 'OSTBTC', 'ADABTC', 'NEOBTC', 'ENJBTC', 'FUNBTC', 'QTUMBTC', 'ICXBTC', 'XRPBTC']:
-    tester(coin)
-    # total_trade_count = 0
-    # total_net_earnings = 0
-    # total_percent_made = 0
-    # for coin in ['XLMBTC', 'OSTBTC', 'ADABTC', 'NEOBTC', 'ENJBTC', 'FUNBTC', 'QTUMBTC', 'ICXBTC']:
-    #     trade_count, net_earnings, percent_made = godlike_tester(coin)
-    #     total_trade_count += trade_count
-    #     total_net_earnings += net_earnings
-    #     total_percent_made += percent_made
-    #     print '========================'
+    coins = ['XLMBTC', 'OSTBTC', 'ADABTC', 'NEOBTC', 'ENJBTC', 'FUNBTC', 'QTUMBTC', 'ICXBTC', 'XRPBTC']
+    # coins = ['BTCUSDT']
+    total_trade_count = Decimal(0)
+    total_net_earnings = Decimal(0)
+    total_percent_made = Decimal(0)
+    for coin in coins:
+        trade_count, net_earnings, percent_made = tester(coin)
+        total_trade_count += trade_count
+        total_net_earnings += net_earnings
+        total_percent_made += percent_made
+        print '========================'
 
-    # print 'TOTAL TRADE COUNT: {trade_count}'.format(trade_count=total_trade_count)
-    # print 'TOTAL NET EARNINGS: ${net_earnings}'.format(net_earnings=total_net_earnings)
-    # print 'TOTAL PERCENT MADE: {percent_made}%'.format(percent_made=total_percent_made)
-    # print 'AVERAGE NET EARNINGS: ${average_earnings}'.format(average_earnings=total_net_earnings/total_trade_count)
-    # print 'AVERAGE PERCENT MADE: {average_percent_made}%'.format(average_percent_made=round(total_percent_made/total_trade_count, 2))
+    print 'TOTAL TRADE COUNT: {trade_count}'.format(trade_count=total_trade_count)
+    print 'TOTAL NET EARNINGS: ${net_earnings}'.format(net_earnings=total_net_earnings)
+    print 'TOTAL PERCENT MADE: {percent_made}%'.format(percent_made=total_percent_made)
+    print 'AVERAGE NET EARNINGS: ${average_earnings}'.format(average_earnings=total_net_earnings/total_trade_count)
+    print 'AVERAGE PERCENT MADE: {average_percent_made}%'.format(average_percent_made=round(total_percent_made/total_trade_count, 2))
